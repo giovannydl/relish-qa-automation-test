@@ -180,7 +180,68 @@ if (this.coupon) {
 
 ---
 
-## Bug 4: Methods Silently Ignore Non-Existent SKUs
+## Bug 4 : Method Allows Duplicate SKUs
+
+| Property    | Detail               |
+|-------------|----------------------|
+| **Method**  | `addLineItem()`      |
+| **Line**    | 29–36                |
+| **Severity**| Major 🟠              |
+
+### Description
+The method `addLineItem()` always pushes a new entry into `this.lineItems` without checking whether a line item with the same SKU already exists. If called twice with the same SKU, the order ends up with two separate entries for the same product, creating an internally inconsistent state.
+
+This inconsistency directly breaks two other methods:
+- **`removeLineItem(sku)`**: It could remove both entries for that SKU simultaneously, which may not be the caller's intent and causes a silent double-deletion.
+- **`updateQuantity(sku, qty)`**: It could only update the first matching entry and silently leave the second one unchanged, resulting in a split quantity across two invisible duplicates.
+
+### Why It's Major
+This is a data integrity bug. Adding the same SKU twice is a realistic user/API error. The lack of a guard means the system silently accepts corrupt order state, which propagates into wrong totals, wrong removals, and wrong quantity updates, all without any error signal.
+
+### How I Found It
+During the second analysis pass, I reviewed all mutation methods and asked: *"What happens if the same method is called twice with the same input?"* This is a standard data-integrity check. 
+
+### Reproduction
+```javascript
+const order = new OrderProcessor();
+order.addLineItem({ sku: "WIDGET-A", unitPrice: 10.00, quantity: 3, taxRate: 0.08 });
+order.addLineItem({ sku: "WIDGET-A", unitPrice: 10.00, quantity: 2, taxRate: 0.08 }); // duplicate SKU
+
+console.log(order.lineItems.length); // 2 — two entries for same SKU (wrong)
+
+order.updateQuantity("WIDGET-A", 10);
+console.log(order.lineItems[0].quantity); // 10 — first entry updated
+console.log(order.lineItems[1].quantity); // 2  — second entry silently unchanged
+
+order.removeLineItem("WIDGET-A");
+console.log(order.lineItems.length); // 0 — both entries removed at once (unexpected)
+```
+
+### Fix
+Check for an existing SKU before pushing. If found, either throw an error or merge the quantities (depending on the intended business behavior).
+
+```javascript
+this.addLineItem = function (item) {
+  const existing = this.lineItems.find((li) => li.sku === item.sku);
+  if (existing) {
+    // Option A: throw — force caller to use updateQuantity explicitly
+    throw new Error(`Line item with SKU "${item.sku}" already exists. Use updateQuantity() to modify it.`);
+    // Option B: merge quantities (if that's the intended behavior)
+    // existing.quantity += item.quantity;
+  } else {
+    this.lineItems.push({
+      sku: item.sku,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      taxRate: item.taxRate || 0,
+    });
+  }
+};
+```
+
+---
+
+## Bug 5: Methods Silently Ignore Non-Existent SKUs
 
 | Property    | Detail                               |
 |-------------|--------------------------------------|
@@ -234,15 +295,56 @@ this.updateQuantity = function (sku, newQuantity) {
 
 ---
 
+## Bug 6: Method Not Rounded Consistently in Return Object
+
+| Property    | Detail                |
+|-------------|-----------------------|
+| **Method**  | `calculateTotal()`    |
+| **Line**    | 139                   |
+| **Severity**| Minor 🟡              |
+
+### Description
+Every field in the return object of `calculateTotal()` is rounded to 2 decimal places using `Math.round(x * 100) / 100`, except `rushSurcharge`, which is returned as a raw number.
+
+Currently `rushSurcharge` is hardcoded to `15.0`, so no rounding issue manifests today. However, the inconsistency breaks the contract of the return object: consumers of this API can reasonably expect all monetary fields to be rounded to 2 decimal places. If `rushSurcharge` is ever changed to a configurable or computed value, this will silently produce unrounded output.
+
+### Why It's Minor
+Does not produce a wrong result today due to the hardcoded `15.0` value. However, it is an API contract inconsistency and a latent bug waiting to surface. Categorized as Minor but should be fixed for correctness and maintainability.
+
+### How I Found It
+On the second pass, I audited the return object field by field, comparing the treatment of each value. 
+
+### Fix
+```javascript
+rushSurcharge: Math.round(rushSurcharge * 100) / 100, 
+```
+---
+
 ## Summary Table
 
-| # | Bug                                       | Method               | Type               | Severity    | Impact                                                     |
-|---|-------------------------------------------|----------------------|--------------------|-------------|------------------------------------------------------------|
-| 1 | Off-by-One Error in Loop Condition        | `getTotalItemCount`  | Off-by-one (crash) | Critical 🔴 | Crashes entire order pipeline on every use                  |
-| 2 | Coupon Does Not Reduce the Tax Base       | `calculateTotal`     | Wrong order of ops | Major 🟠    | Tax overcharged on all coupon orders                        |
-| 3 | Coupon Can Produce a Negative Total       | `calculateTotal`     | Missing clamp      | Major 🟠    | Negative totals when coupon is greater than the order value |
-| 4 | Methods Silently Ignore Non-Existent SKUs | `removeLineItem`     | Silent failure     | Minor 🟡    | Masks upstream bugs, no feedback to caller                  |
+| # | Method              | Type                    | Severity    | Impact                                                   |
+|---|---------------------|-------------------------|-------------|----------------------------------------------------------|
+| 1 | `getTotalItemCount` | Off-by-one (crash)      | 🔴 Critical | Crashes entire order pipeline on every use               |
+| 2 | `calculateTotal`    | Wrong order of ops      | 🟠 Major    | Tax overcharged on all coupon orders                     |
+| 3 | `calculateTotal`    | Missing clamp           | 🟠 Major    | Negative totals when coupon > order value                |
+| 4 | `removeLineItem`    | Silent failure          | 🟡 Minor    | No feedback to caller on non-existent SKU                |
+
+
 
 ---
+
+## Summary Table
+
+| # | Bug                                              | Method               | Type                  | Severity    | Impact                                                     |
+|---|--------------------------------------------------|----------------------|-----------------------|-------------|------------------------------------------------------------|
+| 1 | Off-by-One Error in Loop Condition               | `getTotalItemCount`  | Off-by-one (crash)    | Critical 🔴 | Crashes entire order pipeline on every use                 |
+| 2 | Coupon Does Not Reduce the Tax Base              | `calculateTotal`     | Wrong order of ops    | Major 🟠    | Tax overcharged on all coupon orders                       |
+| 3 | Coupon Can Produce a Negative Total              | `calculateTotal`     | Missing clamp         | Major 🟠    | Negative totals when coupon is greater than the order value |
+| 4 | Method Allows Duplicate SKUs                     | `addLineItem`        | Missing deduplication | Major 🟠    | Duplicate SKUs corrupt order state and break other methods |
+| 5 | Methods Silently Ignore Non-Existent SKUs        | `removeLineItem`     | Silent failure        | Minor 🟡    | Masks upstream bugs, no feedback to caller                 |
+| 6 | Method Not Rounded Consistently in Return Object | `calculateTotal`     | Inconsistent rounding | Minor 🟡    | `rushSurcharge` not rounded — breaks API contract          |
+---
+
+
 
 
