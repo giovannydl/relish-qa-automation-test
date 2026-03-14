@@ -190,24 +190,28 @@ function OrderProcessor() {
 /*
     Usage example of the OrderProcessor object and its elements
 */
+if (require.main === module) {
+  // Create a new order and add line items
+  let order = new OrderProcessor();
+  order.addLineItem({ sku: "WIDGET-A", unitPrice: 12.99, quantity: 5, taxRate: 0.08 });
+  order.addLineItem({ sku: "WIDGET-B", unitPrice: 24.50, quantity: 3, taxRate: 0.08 });
+  order.addLineItem({ sku: "GADGET-X", unitPrice: 7.25, quantity: 4, taxRate: 0.10 });
 
-// Create a new order and add line items
-let order = new OrderProcessor();
-order.addLineItem({ sku: "WIDGET-A", unitPrice: 12.99, quantity: 5, taxRate: 0.08 });
-order.addLineItem({ sku: "WIDGET-B", unitPrice: 24.50, quantity: 3, taxRate: 0.08 });
-order.addLineItem({ sku: "GADGET-X", unitPrice: 7.25, quantity: 4, taxRate: 0.10 });
+  // Print summary (12 items total, should get 5% volume discount)
+  console.log("Order summary:", order.getSummary());
 
-// Print summary (12 items total, should get 5% volume discount)
-console.log("Order summary:", order.getSummary());
+  // Apply a coupon
+  order.applyCoupon({ code: "SAVE5", discountAmount: 5.00 });
+  console.log("After coupon:", order.calculateTotal());
 
-// Apply a coupon
-order.applyCoupon({ code: "SAVE5", discountAmount: 5.00 });
-console.log("After coupon:", order.calculateTotal());
+  // Mark as rush
+  order.setRush(true);
+  console.log("Rush order:", order.calculateTotal());
 
-// Mark as rush
-order.setRush(true);
-console.log("Rush order:", order.calculateTotal());
+  // Advance status
+  order.advanceStatus();
+  console.log("Status:", order.status);
+}
 
-// Advance status
-order.advanceStatus();
-console.log("Status:", order.status);
+// To be able to import the class for the tests
+module.exports = { OrderProcessor };

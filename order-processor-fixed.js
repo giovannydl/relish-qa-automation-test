@@ -66,6 +66,7 @@ function OrderProcessor() {
       item.quantity = newQuantity;
       return true;
     }
+    return false;
   };
 
   /**
@@ -219,4 +220,5 @@ function OrderProcessor() {
   };
 }
 
+// To be able to import the class for the tests
 module.exports = { OrderProcessor };
