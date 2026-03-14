@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Package lock (auto-generated, not needed in repo)
+package-lock.json
+
+# Jest coverage report (generated locally)
+coverage/
