@@ -1,0 +1,22 @@
+{
+  "name": "order-processor-qa",
+  "version": "1.0.0",
+  "description": "Part 1: OrderProcessor bug discovery, fixes, and unit tests",
+  "main": "order-processor.js",
+  "scripts": {
+    "test": "jest --verbose",
+    "test:coverage": "jest --coverage --verbose"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^30.3.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  }
+}
