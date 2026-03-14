@@ -322,19 +322,6 @@ rushSurcharge: Math.round(rushSurcharge * 100) / 100,
 
 ## Summary Table
 
-| # | Method              | Type                    | Severity    | Impact                                                   |
-|---|---------------------|-------------------------|-------------|----------------------------------------------------------|
-| 1 | `getTotalItemCount` | Off-by-one (crash)      | 🔴 Critical | Crashes entire order pipeline on every use               |
-| 2 | `calculateTotal`    | Wrong order of ops      | 🟠 Major    | Tax overcharged on all coupon orders                     |
-| 3 | `calculateTotal`    | Missing clamp           | 🟠 Major    | Negative totals when coupon > order value                |
-| 4 | `removeLineItem`    | Silent failure          | 🟡 Minor    | No feedback to caller on non-existent SKU                |
-
-
-
----
-
-## Summary Table
-
 | # | Bug                                              | Method               | Type                  | Severity    | Impact                                                     |
 |---|--------------------------------------------------|----------------------|-----------------------|-------------|------------------------------------------------------------|
 | 1 | Off-by-One Error in Loop Condition               | `getTotalItemCount`  | Off-by-one (crash)    | Critical 🔴 | Crashes entire order pipeline on every use                 |
