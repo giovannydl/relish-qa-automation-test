@@ -19,6 +19,8 @@ Each test case follows this structure:
 | **Test Steps**      | Numbered, detailed, reproducible steps |
 | **Test Data**       | Any input values used in the test |
 | **Expected Result** | The observable, verifiable outcome |
+| **Status**          | Pass/Fail |
+| **Notes**           | Implementation challenges or observations |
 
 ---
 
@@ -27,6 +29,23 @@ Each test case follows this structure:
 # SCENARIO A — Dynamic Content and Waiting
 
 **Page:** http://uitestingplayground.com/ajax
+
+## Automation Reasoning
+
+### What makes this challenging
+
+This scenario tests a very common problem, an element that does not exist in the DOM 
+yet. When the button is clicked, the response takes approximately 15 seconds to arrive.
+
+During that time:
+- The label element is absent from the DOM.
+- Any assertion attempted too early will fail with "element not found".
+- The exact delay is approximate, it could vary depending on network conditions.
+
+### Strategy: dynamic explicit wait, never a hardcoded sleep
+The approach for this scenario is an explicit wait with a condition: poll the DOM at short
+intervalsuntil the target element appears or a maximum timeout is reached. In Playwright 
+is used `await page.waitForSelector()`.
 
 ## TC-A-01 — Click AJAX button and wait for label to appear
 
@@ -64,6 +83,15 @@ Each test case follows this structure:
 - After clicking the button and waiting (≈15 seconds), a green label appears.
 - The label reads exactly: **"Data loaded with AJAX get request."**
 
+### Actual Result
+
+- Page loaded correctly with heading "AJAX Data".
+- Result label was absent before click.
+- After clicking and waiting ~15 seconds, label appeared with text **"Data loaded with AJAX get request."**
+
+### Status
+Pass
+
 ---
 
 ## TC-A-02 — Verify label is absent before button is clicked
@@ -93,6 +121,14 @@ Each test case follows this structure:
 
 - The label element with class `bg-success` is not present in the DOM on initial page load.
 - No success text is visible to the user.
+
+### Actual Result
+
+- `isVisible()` returned `false` immediately on page load.
+- No element was found in the DOM before any interaction.
+
+### Status
+Pass
 
 ---
 
@@ -126,6 +162,10 @@ Each test case follows this structure:
 - A timeout or "element not found" error is raised by the framework.
 - This test is expected to fail at the wait step — confirming the wait mechanism is actually enforcing its timeout condition.
 
+### Notes
+
+- This test was excluded from the default suite and is a negative/infrastructure test. It proves the wait mechanism enforces its
+  timeout boundary correctly.
 ---
 
 ---
@@ -135,6 +175,34 @@ Each test case follows this structure:
 **Page:** http://uitestingplayground.com/sampleapp
 
 ## Automation Reasoning
+
+### What makes this challenging
+
+This scenario involves three distinct automation challenges:
+
+1. **Empty field validation**: The test must explicitly submit the form with empty 
+   fields and then assert on the resulting error state, not just on the absence of
+   a success state.
+
+2. **Dynamic text verification containing variable input**: The assertion cannot be
+   a hardcoded exact-match string, it must either use a `contains()` / `includes()`
+   check or construct the expected string dynamically from the test data.
+
+3. **Button text state change** — The button's label changes from "Log In" to
+   "Log Out" after successful authentication. Tthis scenario specifically
+   requires verifying the UI state of the button itself, a behavioral assertion,
+   not just a content assertion.
+
+### Strategy
+
+- For empty credential validation: submit directly without filling fields and assert
+  on the error message text.
+- For the success message: build the expected string from the test data variable.
+- For the button text change: query the button element after login and assert it is
+  correct.
+
+---
+
 ## TC-B-01 — Login attempt with empty credentials shows error
 
 | Field            | Detail |
@@ -175,6 +243,15 @@ Each test case follows this structure:
 - The button text remains **"Log In"** — the user is not authenticated.
 - No welcome message is shown.
 
+### Actual Result
+
+- Status label updated to **"Invalid username/password"** immediately after clicking.
+- Button text remained **"Log In"**.
+- No welcome message was shown.
+
+### Status
+Pass
+
 ---
 
 ## TC-B-02 — Login attempt with valid username and wrong password shows error
@@ -211,6 +288,14 @@ Each test case follows this structure:
 - Button text remains **"Log In"**.
 - User is not authenticated.
 
+### Actual Result
+
+- Status label showed **"Invalid username/password"** after submitting.
+- Button remained **"Log In"**.
+
+### Status
+Pass
+
 ---
 
 ## TC-B-03 — Successful login with valid credentials
@@ -228,10 +313,10 @@ Each test case follows this structure:
 | 1 | Navigate to `http://uitestingplayground.com/sampleapp` | Fresh page load |
 | 2 | Verify initial logged-out state | Assert status label reads **"User logged out."** |
 | 3 | Verify button initial text | Assert button reads **"Log In"** |
-| 4 | Enter username | Type `alice` into `[name="UserName"]` |
+| 4 | Enter username | Type `gio` into `[name="UserName"]` |
 | 5 | Enter password | Type `pwd` into `[name="Password"]` |
 | 6 | Click "Log In" | Single click on `button#login` |
-| 7 | Assert welcome message contains username | Verify status label **contains** the text `"Welcome, alice!"` — built dynamically from the test data variable, not hardcoded |
+| 7 | Assert welcome message contains username | Verify status label **contains** the text `"Welcome, gio!"` — built dynamically from the test data variable, not hardcoded |
 | 8 | Assert button text changed | Verify the button text is now exactly **"Log Out"** |
 
 ### Test Data
@@ -239,16 +324,25 @@ Each test case follows this structure:
 | Key | Value |
 |-----|-------|
 | Page URL | `http://uitestingplayground.com/sampleapp` |
-| Username | `alice` |
+| Username | `gio` |
 | Password | `pwd` |
-| Expected status message | `Welcome, alice!` (constructed as `"Welcome, " + username + "!"`) |
+| Expected status message | `Welcome, gio!` (constructed as `"Welcome, " + username + "!"`) |
 | Expected button text after login | `Log Out` |
 
 ### Expected Result
 
-- The status label reads **"Welcome, alice!"**.
+- The status label reads **"Welcome, gio!"**.
 - The login button text changes to **"Log Out"**.
 - The user is considered authenticated by the UI.
+
+### Actual Result
+
+- Status label showed **"Welcome, gio!"** immediately after login.
+- Button text changed to **"Log Out"**.
+- Dynamic assertion worked.
+
+### Status
+Pass
 
 ---
 
@@ -258,13 +352,13 @@ Each test case follows this structure:
 |------------------|--------|
 | **Test Case ID** | TC-B-04 |
 | **Description**  | Verifies that clicking "Log Out" after a successful login returns the application to the logged-out state. |
-| **Preconditions** | 1. TC-B-03 has been completed successfully. <br>2. User is currently logged in as `alice`. <br>3. Button reads "Log Out". |
+| **Preconditions** | 1. TC-B-03 has been completed successfully. <br>2. User is currently logged in as `gio`. <br>3. Button reads "Log Out". |
 
 ### Test Steps
 
 | Step | Action | Detail |
 |------|--------|--------|
-| 1 | Confirm logged-in state | Verify status label contains `"Welcome, alice!"` and button reads `"Log Out"` |
+| 1 | Confirm logged-in state | Verify status label contains `"Welcome, gio!"` and button reads `"Log Out"` |
 | 2 | Click "Log Out" | Single click on the button |
 | 3 | Assert logged-out status | Verify status label reads **"User logged out."** |
 | 4 | Assert button text reverted | Verify button text is back to **"Log In"** |
@@ -273,7 +367,7 @@ Each test case follows this structure:
 
 | Key | Value |
 |-----|-------|
-| Username used in prior login | `alice` |
+| Username used in prior login | `gio` |
 | Expected status after logout | `User logged out.` |
 | Expected button text after logout | `Log In` |
 
@@ -283,6 +377,13 @@ Each test case follows this structure:
 - Button text reverts to **"Log In"**.
 - The full login/logout cycle completes correctly.
 
+### Actual Result
+
+- After clicking "Log Out", status label reverted to **"User logged out."** 
+- Button text reverted to **"Log In"**. 
+
+### Status
+Pass
 ---
 
 ---
@@ -292,6 +393,27 @@ Each test case follows this structure:
 **Pages:**
 - Dynamic ID: http://uitestingplayground.com/dynamicid
 - Overlapped Element: http://uitestingplayground.com/overlapped
+
+## Automation Reasoning
+
+### What makes the Dynamic ID page challenging
+
+The button's `id` attribute is regenerated on every page load. Most record-and-playback tools
+capture the ID and hardcode it as the selector, producing a test that breaks immediately on 
+re-run.
+
+**Strategy:** Never use the `id` attribute for this button. Instead, use a selector
+that targets a stable attribute.
+
+### What makes the Overlapped Element page challenging
+
+The input field is partially hidden, it is scrolled out of the visible viewport. Automation 
+tools that try to click or type into an element that is not fully visible will fail silently.
+
+**Strategy:** Before interacting with the input, explicitly scroll it into the
+viewport . After scrolling, verify the element isfully visible before typing.
+
+---
 
 ## TC-C-01 — Click button with dynamic ID using stable selector
 
@@ -327,6 +449,15 @@ Each test case follows this structure:
 - The button is clicked successfully again using the same stable selector.
 - The test passes on both loads without modifying the selector, proving the strategy is reload-proof.
 
+### Actual Result
+
+- Button clicked successfully on first load using `button.btn-primary`.
+- After reload, `id` attribute had a new value.
+- Same selector located and clicked the button again.
+
+### Status
+Pass
+
 ---
 
 ## TC-C-02 — Confirm dynamic ID changes between page loads
@@ -358,6 +489,13 @@ Each test case follows this structure:
 
 - `id_load_1` and `id_load_2` are different strings.
 - This confirms the `id` is genuinely dynamic and cannot be used as a selector.
+
+### Actual Result
+
+- Dynamic ID changes after reload. 
+
+### Status
+Pass
 
 ---
 
@@ -399,6 +537,15 @@ Each test case follows this structure:
 - Reading the input's value confirms it contains exactly `"AutomationTest"`.
 - No "element not interactable" or "element not visible" errors are thrown.
 
+### Actual Result
+
+- Scrolled the Name field into the visible viewport.
+- Entered the value without errors.
+- No interactability errors were thrown.
+
+### Status
+Pass
+
 ---
 
 ## TC-C-04 — Verify that interacting without scrolling fails (negative test)
@@ -430,6 +577,10 @@ Each test case follows this structure:
 - The interaction fails with an error, OR the value is not correctly entered.
 - This confirms that direct interaction without scrolling is unreliable.
 - This test is expected to fail at the interaction step, it is a negative test to prove the necessity of the scroll step in TC-C-03.
+
+### Notes
+
+- This test was excluded from the default suite and is a negative/infrastructure test. 
 ---
 
 ---
