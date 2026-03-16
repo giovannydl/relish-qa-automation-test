@@ -27,9 +27,8 @@ test.describe("Scenario A — Dynamic Content and Waiting", () => {
     ajaxPage = new AjaxPage(page);
     await ajaxPage.navigate();
   });
-  
-  // TC-A-01 heading assertion ───────────────────────────────────────────────
-  test("TC-A-01 | Page heading reads 'AJAX Data'", async () => {
+
+  test("TC-A-00 | Page loads with heading 'AJAX Data'", async () => {
     const heading = await ajaxPage.getHeading();
     expect(heading).toBe("AJAX Data");
   });
