@@ -17,6 +17,9 @@
     "testEnvironment": "node",
     "testMatch": [
       "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "order-processor-fixed.js"
     ]
   }
 }
