@@ -6,3 +6,11 @@ package-lock.json
 
 # Jest coverage report (generated locally)
 coverage/
+
+# Playwright
+automation/node_modules/
+automation/test-results/
+automation/playwright-report/
+automation/blob-report/
+automation/playwright/.cache/
+automation/playwright/.auth/

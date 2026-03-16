@@ -1,0 +1,25 @@
+{
+  "name": "order-processor-qa",
+  "version": "1.0.0",
+  "description": "Part 4: Automation Framework",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --verbose",
+    "test:coverage": "jest --coverage --verbose",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "HEADLESS=false playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:scenarioA": "playwright test scenarioA",
+    "test:e2e:scenarioB": "playwright test scenarioB",
+    "test:e2e:scenarioC": "playwright test scenarioC"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0"
+  }
+}
